@@ -1,0 +1,98 @@
+#####INSTALL PACKAGES
+install.packages("tidyverse")
+install.packages("stargazer")
+install.packages("descr")
+install.packages("forcats")
+install.packages("e1071")
+install.packages("caret")
+install.packages("gridExtra")
+install.packages("dplyr")
+install.packages("tibble")
+
+###LOAD PACKAGES INTO LIBRARY
+library(tidyverse)
+library(stargazer)
+library(descr)
+library(forcats)
+library(e1071)
+library(caret)
+library(gridExtra)
+library(dplyr)
+library(tibble)
+
+###LOAD DATA 
+loan <- read.csv(file.choose())
+tble <- as_tibble(loan)
+glimpse(tble)
+
+df <- tble[, colSums(is.na(tble)) < length(tble)/2]
+head(df)
+
+factor_vars <- df[, sapply(df, is.factor)]
+
+numerical_vars <- df[, sapply(df, is.numeric)]
+
+p1 <- ggplot(data = df, aes(loan_amnt)) + geom_histogram(binwidth = 1000)
+p2 <- ggplot(data = df, aes(loan_amnt)) + geom_density(fill = "gray")
+grid.arrange(p1, p2, ncol = 2)
+
+p1 <- ggplot(data = df, aes(loan_amnt, color = grade)) + geom_histogram(binwidth = 1000) +
+  facet_grid(grade ~ .)
+p2 <- ggplot(data = df, aes(loan_amnt, color = grade, fill = grade)) + geom_density(bindwidth = 1000) +
+  facet_grid(grade ~.)
+grid.arrange(p1, p2, ncol = 2)
+
+df %>% filter(!is.na(home_ownership)) %>%filter(!home_ownership %in% c("OTHER",
+        "NONE", "ANY")) %>% group_by(home_ownership) %>% summarise(mean_amnt_loan = mean(loan_amnt),
+        mean_annual_inc = mean(annual_inc), n = n()) %>% ungroup() %>% arrange(desc(n))
+
+ggplot(data = subset(df, (!is.na(home_ownership) & !home_ownership %in% c("OTHER","NONE", "ANY"))),
+       aes(x = home_ownership, fill = grade, color = grade)) +
+  geom_bar() +
+  labs(title = "Dist. of home_ownership by grade")
+
+ggplot(data = subset(df,!is.na(purpose)), aes(purpose, fill = loan_status, color = loan_status)) + geom_bar() +
+  labs(title = "Dist. of Loan Purpose") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+loan <- filter(loan, loan_status!="")
+loan$status <- ifelse(loan$loan_status=="Current" | 
+                        loan$loan_status=="Fully Paid" |
+                        loan$loan_status=="Does not meet the credit policy.  Status:Fully Paid","good","bad")
+loan$status <- as.factor(loan$status)
+
+loan$fico <- (loan$fico_range_high+loan$fico_range_low)/2
+summary(loan$fico)
+loan$ficocat <- cut(loan$fico, breaks=c(0,687,742,1000),
+                    labels=c("bottom 25%","middle 50%", "top 25%"))
+table(loan$ficocat)
+summary(loan$dti)
+loan$dticat <- cut(loan$dti, breaks=c(0,8.2,18.68,100),
+                   labels=c("bottom 25%","middle 50%", "top 25%"))
+table(loan$dticat)
+
+table(loan$purpose)
+
+loan$purpose <- factor(loan$purpose)
+levels(loan$purpose)
+
+loan$purpose <- fct_collapse(loan$purpose, other=c("renewable_energy", "other"))
+levels(loan$purpose)
+table(loan$purpose)
+
+loan <- select(loan, status, ficocat, dticat, purpose)
+set.seed(364)
+loan$rand <- runif(nrow(loan))
+train <- filter(loan, rand<=0.8)
+test <- filter(loan, rand>0.8)
+
+classifier <- naiveBayes(status ~ ficocat+dticat+purpose,train)
+classifier
+prediction <- predict(classifier, select(test, ficocat, dticat, purpose), type="raw")
+summary(prediction)
+
+test$status_pred <- ifelse(prediction[,"good"] > 0.65, "good", "bad")
+table(test$status_pred)
+
+test1<-factor(test$status)
+test2<-factor(test$status_pred)
+confusionMatrix(test2, test1)
