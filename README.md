@@ -1,1 +1,5 @@
-# R.Programing_Comparing_Naive_bays_vs_SVM_for_Loan_Repayment_Prediction
+I took on this project to compare Naive Bays with Support Vector Machine (SVM). This was to understand which model performs better with my dataset numbers. I discovered that:
+
+1) The Naive Bayes model offered a more in-depth analysis of the purpose of the loan (providered more insights into the data, as it can be used to analyze the purpose of the loan, the FICO score, and the debt-to-income ratio)  as compared to the SVM which offered an analysis between fully paid loans vs not fully paid loans.
+2) The Naive Bayes model showed an accuracy of around 80%, which is a good performance for a binary classification problem with a confidence interval of 95%. The model had a low sensitivity (6.1%), meaning that it was not able to identify bad loans very well. On the other hand, the model had a high specificity (97.97%), indicating that it was able to correctly identify good loans most of the time. This suggests that the model was better at identifying good loans than bad loans.
+3) The SVM model, on the other hand, had an accuracy of 78%, which was slightly lower than the Naive Bayes model (80%). The model's confusion matrix showed a precision of 22.17% and a recall of (26.70%), indicating that it was not able to identify bad loans very well. It was just too low.
