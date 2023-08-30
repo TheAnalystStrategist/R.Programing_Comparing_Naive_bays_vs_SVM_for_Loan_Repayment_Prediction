@@ -1,4 +1,4 @@
-#####INSTALL PACKAGES
+#####INSTALL REQUIRED PACKAGES
 install.packages("tidyverse")
 install.packages("stargazer")
 install.packages("descr")
@@ -9,7 +9,7 @@ install.packages("gridExtra")
 install.packages("dplyr")
 install.packages("tibble")
 
-###LOAD PACKAGES INTO LIBRARY
+###LOAD PACKAGES INTO LIBRARIES
 library(tidyverse)
 library(stargazer)
 library(descr)
@@ -20,40 +20,48 @@ library(gridExtra)
 library(dplyr)
 library(tibble)
 
-###LOAD DATA 
+###LOAD DATA INTERACTIVELY, CONVERT TO TIBBLE AND DISPLAY DATA
 loan <- read.csv(file.choose())
 tble <- as_tibble(loan)
 glimpse(tble)
 
+###REMOVE COLUMNS WITH MORE THAN HALF MISSING VALUES
 df <- tble[, colSums(is.na(tble)) < length(tble)/2]
 head(df)
 
+###IDENTIFY FACTORS AND NUMERICAL VARIABLES
 factor_vars <- df[, sapply(df, is.factor)]
 
 numerical_vars <- df[, sapply(df, is.numeric)]
 
+###CREATE HISTOGRAM AND DENSITY PLOTS LOAN AMOUNT
 p1 <- ggplot(data = df, aes(loan_amnt)) + geom_histogram(binwidth = 1000)
 p2 <- ggplot(data = df, aes(loan_amnt)) + geom_density(fill = "gray")
 grid.arrange(p1, p2, ncol = 2)
 
+###CREATE HISTOGRAM AND DENSITY PLOTS LOAN AMOUNT BY GRADE
 p1 <- ggplot(data = df, aes(loan_amnt, color = grade)) + geom_histogram(binwidth = 1000) +
   facet_grid(grade ~ .)
 p2 <- ggplot(data = df, aes(loan_amnt, color = grade, fill = grade)) + geom_density(bindwidth = 1000) +
   facet_grid(grade ~.)
 grid.arrange(p1, p2, ncol = 2)
 
+###SUMMARIZE LOAN AMOUNT AND ANNUAL INCOME BY HOME OWNERSHIP STATUS
 df %>% filter(!is.na(home_ownership)) %>%filter(!home_ownership %in% c("OTHER",
         "NONE", "ANY")) %>% group_by(home_ownership) %>% summarise(mean_amnt_loan = mean(loan_amnt),
         mean_annual_inc = mean(annual_inc), n = n()) %>% ungroup() %>% arrange(desc(n))
 
+###CREATE A BAR PLOT FOR DISTRIBUTION OF HOME OWNERSHIP BY GRADE
 ggplot(data = subset(df, (!is.na(home_ownership) & !home_ownership %in% c("OTHER","NONE", "ANY"))),
        aes(x = home_ownership, fill = grade, color = grade)) +
   geom_bar() +
   labs(title = "Dist. of home_ownership by grade")
 
+###CREATE A BAR PLOT FOR DISTRIBUTION OF LOAN PURPOSE
 ggplot(data = subset(df,!is.na(purpose)), aes(purpose, fill = loan_status, color = loan_status)) + geom_bar() +
   labs(title = "Dist. of Loan Purpose") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+#DATA PREPROCESSING FOR CLASSIFICATION
 loan <- filter(loan, loan_status!="")
 loan$status <- ifelse(loan$loan_status=="Current" | 
                         loan$loan_status=="Fully Paid" |
@@ -72,6 +80,7 @@ table(loan$dticat)
 
 table(loan$purpose)
 
+###DATA PREPROCESSING FOR PURPOSE VARIABLE
 loan$purpose <- factor(loan$purpose)
 levels(loan$purpose)
 
@@ -79,20 +88,24 @@ loan$purpose <- fct_collapse(loan$purpose, other=c("renewable_energy", "other"))
 levels(loan$purpose)
 table(loan$purpose)
 
+###SELECT RELEVANT COLUMNS AND SPLIT DATA INTO TRAINING AND TESTING SETS
 loan <- select(loan, status, ficocat, dticat, purpose)
 set.seed(364)
 loan$rand <- runif(nrow(loan))
 train <- filter(loan, rand<=0.8)
 test <- filter(loan, rand>0.8)
 
+###BUILD A NAIVE BAYES CLASSIFIER AND MAKE PREDICTIONS
 classifier <- naiveBayes(status ~ ficocat+dticat+purpose,train)
 classifier
 prediction <- predict(classifier, select(test, ficocat, dticat, purpose), type="raw")
-summary(prediction)
 
+###SUMMARIZE PREDICTIONS AND ASSIGN PREDICTED STATUS
+summary(prediction)
 test$status_pred <- ifelse(prediction[,"good"] > 0.65, "good", "bad")
 table(test$status_pred)
 
+###CREATE A CONFUSION MATRIX TO EVALUATE THE PERFORMANCE OF PREDICTIVE MODELS
 test1<-factor(test$status)
 test2<-factor(test$status_pred)
 confusionMatrix(test2, test1)
